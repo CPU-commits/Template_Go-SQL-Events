@@ -10,6 +10,14 @@ import (
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 )
 
+// GetDog godoc
+//
+//	@Summary	Obtener un perro por ID
+//	@Tags		dogs
+//	@Success	200	{object}	model.Dog
+//	@Failure	404	{object}	utils.ProblemDetails
+//	@Param		id	path		int	true	"ID Dog"
+//	@Router		/api/dogs/{idDog} [get]
 func GetDog(c *gin.Context) {
 	idDog := c.Param("idDog")
 	idIntDog, err := strconv.Atoi(idDog)
@@ -42,6 +50,13 @@ func GetDog(c *gin.Context) {
 	c.JSON(200, dog)
 }
 
+// InsertDog godoc
+//
+//	@Summary	Insertar un perro
+//	@Tags		dogs
+//	@Success	200	{string}	ok
+//	@Failure	409	{object}	utils.ProblemDetails
+//	@Router		/api/dogs [post]
 func InsertDog(c *gin.Context) {
 	var dogDto *dto.DogDTO
 
@@ -74,7 +89,5 @@ func InsertDog(c *gin.Context) {
 		return
 	}
 
-	c.JSON(201, utils.ProblemDetails{
-		Title: "ok",
-	})
+	c.String(201, "ok")
 }

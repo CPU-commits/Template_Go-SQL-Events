@@ -64,7 +64,15 @@ func (natsClient *NatsClient) addStreams() {
 			}
 		}
 		if !exists {
-			log.Panicf("Stream %s not exists", expectedStream)
+			if settingsData.GO_ENV == "prod" {
+				log.Panicf("Stream %s not exists", expectedStream)
+			} else {
+				natsClient.js.CreateStream(context.Background(), jetstream.StreamConfig{
+					Name:     expectedStream,
+					Subjects: []string{strings.ToLower(expectedStream) + ".*"},
+					Storage:  jetstream.MemoryStorage,
+				})
+			}
 		}
 
 		stream, err := natsClient.js.Stream(context.Background(), expectedStream)

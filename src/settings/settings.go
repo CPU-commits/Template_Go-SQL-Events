@@ -19,6 +19,7 @@ type settings struct {
 	CORS_DOMAINS   string
 	GO_ENV         string
 	NATS_HOSTS     string
+	DB_CONNECTION  string
 }
 
 func validateSettings(settings *settings) {
@@ -39,6 +40,9 @@ func validateSettings(settings *settings) {
 	if settings.NATS_HOSTS == "" {
 		missing = append(missing, "NATS_HOSTS")
 	}
+	if settings.DB_CONNECTION == "" {
+		missing = append(missing, "DB_CONNECTION")
+	}
 
 	if len(missing) > 0 {
 		panic(fmt.Sprintf("Missing variables: %s", strings.Join(missing, ", ")))
@@ -52,6 +56,7 @@ func newSettings() *settings {
 		GO_ENV:         os.Getenv("GO_ENV"),
 		CORS_DOMAINS:   os.Getenv("CORS_DOMAINS"),
 		NATS_HOSTS:     os.Getenv("NATS_HOSTS"),
+		DB_CONNECTION:  os.Getenv("DB_CONNECTION"),
 	}
 	validateSettings(settings)
 

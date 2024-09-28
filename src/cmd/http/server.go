@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CPU-commits/Template_Go-EventDriven/src/cmd/http/docs"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/dogs/controller"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/package/logger"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/settings"
@@ -18,7 +19,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	swaggerFiles "github.com/swaggo/files"
-	"github.com/swaggo/swag/example/basic/docs"
 
 	// swagger embed files
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -27,33 +27,6 @@ import (
 
 var settingsData = settings.GetSettings()
 
-// @title          API
-// @version        1.0
-// @description    API Server
-// @termsOfService http://swagger.io/terms/
-
-// @contact.name  API Support
-// @contact.url   http://www.swagger.io/support
-// @contact.email support@swagger.io
-
-// lincense.name  Apache 2.0
-// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
-
-// @tag.name        x
-// @tag.description x
-
-// @host     localhost:8080
-// @BasePath /api/x
-
-// @securityDefinitions.apikey ApiKeyAuth
-// @in                         header
-// @name                       Authorization
-// @description                BearerJWTToken in Authorization Header
-
-// @accept  json
-// @produce json
-
-// @schemes http https
 func Init(zapLogger *zap.Logger, logger logger.Logger) {
 	router := gin.New()
 	// Proxies
@@ -75,7 +48,7 @@ func Init(zapLogger *zap.Logger, logger logger.Logger) {
 		})
 	}))
 	// Docs
-	docs.SwaggerInfo.BasePath = "/api/x"
+	docs.SwaggerInfo.BasePath = "/api"
 	docs.SwaggerInfo.Version = "v1"
 	docs.SwaggerInfo.Host = "localhost:8080"
 	// CORS

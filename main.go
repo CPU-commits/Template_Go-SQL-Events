@@ -7,6 +7,7 @@ import (
 
 	"github.com/CPU-commits/Template_Go-EventDriven/src/cmd/bus"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/cmd/http"
+	"github.com/CPU-commits/Template_Go-EventDriven/src/package/db"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/package/logger"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/utils"
 	"github.com/natefinch/lumberjack"
@@ -58,6 +59,30 @@ func newLogger() (*zap.Logger, logger.Logger) {
 	return zapLogger, loggerFromZap{zapLogger: zapLogger}
 }
 
+//	@title			API
+//	@version		1.0
+//	@description	API Server
+//	@termsOfService	http://swagger.io/terms/
+
+//	@contact.name	API Support
+//	@contact.url	http://www.swagger.io/support
+//	@contact.email	support@swagger.io
+
+// lincense.name  Apache 2.0
+//	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
+
+//	@host		localhost:8080
+//	@BasePath	/api
+
+//	@securityDefinitions.apikey	ApiKeyAuth
+//	@in							header
+//	@name						Authorization
+//	@description				BearerJWTToken in Authorization Header
+
+//	@accept		json
+//	@produce	json
+
+// @schemes	http https
 func main() {
 	// I18n
 	bundle := i18n.NewBundle(language.Spanish)
@@ -74,6 +99,8 @@ func main() {
 	utils.Bundle = bundle
 	// Logger
 	zapLogger, logger := newLogger()
+	// SQL
+	db.Init(logger)
 	// Cmd
 	bus.Init(logger)
 	http.Init(zapLogger, logger)
