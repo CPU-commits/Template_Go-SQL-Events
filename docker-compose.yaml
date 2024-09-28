@@ -1,0 +1,24 @@
+services:
+  app:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile.dev
+    volumes:
+      - ./:/app
+    ports:
+      - 8080:8080
+    depends_on:
+      - nats-js
+    networks:
+      - app_network
+  nats-js:
+    image: nats:2.10-scratch
+    ports:
+      - 4222:4222
+    command: '-js'
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge

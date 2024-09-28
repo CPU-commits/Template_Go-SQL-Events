@@ -1,0 +1,136 @@
+package http
+
+import (
+	"fmt"
+	"log"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/CPU-commits/Template_Go-EventDriven/src/dogs/controller"
+	"github.com/CPU-commits/Template_Go-EventDriven/src/package/logger"
+	"github.com/CPU-commits/Template_Go-EventDriven/src/settings"
+	"github.com/CPU-commits/Template_Go-EventDriven/src/utils"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-contrib/secure"
+
+	ginzap "github.com/gin-contrib/zap"
+	"github.com/gin-gonic/gin"
+
+	swaggerFiles "github.com/swaggo/files"
+	"github.com/swaggo/swag/example/basic/docs"
+
+	// swagger embed files
+	ginSwagger "github.com/swaggo/gin-swagger"
+	"go.uber.org/zap"
+)
+
+var settingsData = settings.GetSettings()
+
+// @title          API
+// @version        1.0
+// @description    API Server
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name  API Support
+// @contact.url   http://www.swagger.io/support
+// @contact.email support@swagger.io
+
+// lincense.name  Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @tag.name        x
+// @tag.description x
+
+// @host     localhost:8080
+// @BasePath /api/x
+
+// @securityDefinitions.apikey ApiKeyAuth
+// @in                         header
+// @name                       Authorization
+// @description                BearerJWTToken in Authorization Header
+
+// @accept  json
+// @produce json
+
+// @schemes http https
+func Init(zapLogger *zap.Logger, logger logger.Logger) {
+	router := gin.New()
+	// Proxies
+	router.SetTrustedProxies([]string{"localhost"})
+	// Logger
+	router.Use(ginzap.GinzapWithConfig(zapLogger, &ginzap.Config{
+		TimeFormat: time.RFC3339,
+		UTC:        true,
+		SkipPaths:  []string{"/swagger", "/healthz"},
+	}))
+	router.Use(ginzap.RecoveryWithZap(zapLogger, true))
+
+	router.Use(gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
+		if err, ok := recovered.(string); ok {
+			c.String(http.StatusInternalServerError, fmt.Sprintf("Server Internal Error: %s", err))
+		}
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"title": "Server internal error",
+		})
+	}))
+	// Docs
+	docs.SwaggerInfo.BasePath = "/api/x"
+	docs.SwaggerInfo.Version = "v1"
+	docs.SwaggerInfo.Host = "localhost:8080"
+	// CORS
+	if settingsData.GO_ENV == "prod" {
+		router.Use(cors.New(cors.Config{
+			AllowOrigins:     strings.Split(settingsData.CORS_DOMAINS, ","),
+			AllowMethods:     []string{"GET", "OPTIONS", "PUT", "DELETE", "POST"},
+			AllowCredentials: true,
+			AllowHeaders:     []string{"*"},
+			AllowWebSockets:  false,
+			MaxAge:           12 * time.Hour,
+		}))
+	} else {
+		router.Use(cors.Default())
+	}
+	// Secure
+	sslUrl := "ssl." + settingsData.CLIENT_DOMAIN
+	secureConfig := secure.Config{
+		SSLHost:              sslUrl,
+		STSSeconds:           315360000,
+		STSIncludeSubdomains: true,
+		FrameDeny:            true,
+		ContentTypeNosniff:   true,
+		BrowserXssFilter:     true,
+		IENoOpen:             true,
+		ReferrerPolicy:       "strict-origin-when-cross-origin",
+		SSLProxyHeaders: map[string]string{
+			"X-Fowarded-Proto": "https",
+		},
+	}
+	router.Use(secure.New(secureConfig))
+	// I18n
+	router.Use(func(ctx *gin.Context) {
+		lang := ctx.DefaultQuery("lang", "es")
+		ctx.Set("localizer", utils.GetLocalizer(lang))
+	})
+	// Routes
+	dog := router.Group("api/dogs")
+	{
+		// Define routes
+		dog.GET("/:idDog", controller.GetDog)
+		dog.POST("", controller.InsertDog)
+	}
+	// Route docs
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// Route healthz
+	router.GET("/healthz", func(ctx *gin.Context) {
+		ctx.String(200, "OK")
+	})
+	// No route
+	router.NoRoute(func(ctx *gin.Context) {
+		ctx.String(404, "Not found")
+	})
+	// Init server
+	if err := router.Run(); err != nil {
+		log.Fatalf("Error init server")
+	}
+}
