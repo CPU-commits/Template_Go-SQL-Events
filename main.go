@@ -7,7 +7,6 @@ import (
 
 	"github.com/CPU-commits/Template_Go-EventDriven/src/cmd/bus"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/cmd/http"
-	"github.com/CPU-commits/Template_Go-EventDriven/src/package/db"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/package/logger"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/utils"
 	"github.com/natefinch/lumberjack"
@@ -99,8 +98,6 @@ func main() {
 	utils.Bundle = bundle
 	// Logger
 	zapLogger, logger := newLogger()
-	// SQL
-	db.Init(logger)
 	// Cmd
 	bus.Init(logger)
 	http.Init(zapLogger, logger)
