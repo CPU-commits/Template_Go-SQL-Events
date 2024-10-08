@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CPU-commits/Template_Go-EventDriven/src/cmd/bus/queue"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/cmd/http/docs"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/dogs/controller"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/package/logger"
@@ -85,12 +86,18 @@ func Init(zapLogger *zap.Logger, logger logger.Logger) {
 		lang := ctx.DefaultQuery("lang", "es")
 		ctx.Set("localizer", utils.GetLocalizer(lang))
 	})
+	// Init bus
+	bus := queue.New(logger)
 	// Routes
 	dog := router.Group("api/dogs")
 	{
+		// Controllers
+		dogController := controller.NewHTTPDogController(
+			bus,
+		)
 		// Define routes
-		dog.GET("/:idDog", controller.GetDog)
-		dog.POST("", controller.InsertDog)
+		dog.GET("/:idDog", dogController.GetDog)
+		dog.POST("", dogController.InsertDog)
 	}
 	// Route docs
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

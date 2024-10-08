@@ -11,7 +11,7 @@ import (
 func JWTMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		localizer := utils.GetI18nLocalizer(ctx)
-		token, err := utils.VerifyToken(ctx.Request)
+		token, err := utils.VerifyToken(ctx.Request.Header.Get("Authorization"))
 		if err != nil {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, &utils.ProblemDetails{
 				Detail: err.Error(),

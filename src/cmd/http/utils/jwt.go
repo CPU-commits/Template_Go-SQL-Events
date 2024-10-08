@@ -3,7 +3,6 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/CPU-commits/Template_Go-EventDriven/src/settings"
@@ -12,6 +11,7 @@ import (
 )
 
 var jwtKey = settings.GetSettings().JWT_SECRET_KEY
+var jwtKeyByte = []byte(jwtKey)
 
 type Claims struct {
 	ID       string
@@ -19,8 +19,14 @@ type Claims struct {
 	Name     string
 }
 
-func extractToken(r *http.Request) string {
-	bearerToken := r.Header.Get("Authorization")
+type RefreshClaims struct {
+	Exp float64
+	Iat float64
+	Sub string
+	UID float64
+}
+
+func extractToken(bearerToken string) string {
 	strArr := strings.Split(bearerToken, " ")
 	if len(strArr) == 2 {
 		return strArr[1]
@@ -28,8 +34,8 @@ func extractToken(r *http.Request) string {
 	return ""
 }
 
-func VerifyToken(r *http.Request) (*jwt.Token, error) {
-	tokenString := extractToken(r)
+func VerifyToken(bearerToken string) (*jwt.Token, error) {
+	tokenString := extractToken(bearerToken)
 	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
@@ -51,6 +57,17 @@ func ExtractTokenMetadata(token *jwt.Token) (*Claims, error) {
 		ID:       fmt.Sprintf("%v", claim["_id"]),
 		UserType: fmt.Sprintf("%v", claim["user_type"]),
 		Name:     fmt.Sprintf("%v", claim["name"]),
+	}, nil
+}
+
+func ExtractRefreshTokeMetadata(token *jwt.Token) (*RefreshClaims, error) {
+	claim := token.Claims.(jwt.MapClaims)
+
+	return &RefreshClaims{
+		Iat: claim["iat"].(float64),
+		Exp: claim["exp"].(float64),
+		Sub: claim["sub"].(string),
+		UID: claim["uid"].(float64),
 	}, nil
 }
 

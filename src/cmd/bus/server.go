@@ -9,8 +9,11 @@ import (
 func Init(logger logger.Logger) {
 	queueBus := queue.New(logger)
 
+	// Init controllers
+	dogController := controller.NewQueueDogController(queueBus)
+	// Init subscribers
 	queueBus.Subscribe(
 		INSERT_DOG,
-		controller.InsertDogQueue,
+		dogController.NotifyDogIsInserted,
 	)
 }

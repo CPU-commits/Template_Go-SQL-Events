@@ -17,7 +17,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
-const NATS_QUEUE = "main"
+const NATS_QUEUE = "auth"
 
 type NatsClient struct {
 	conn      *nats.Conn
@@ -133,6 +133,58 @@ func (natsClient *NatsClient) QueueSubscribe(
 		// Convert
 		resBytes, _ := json.Marshal(res)
 		msg.Respond(resBytes)
+	})
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (natsClient *NatsClient) SubscribeAndRespond(
+	name bus.EventName,
+	handler func(c bus.Context) (*bus.BusResponse, error),
+) {
+	_, err := natsClient.conn.QueueSubscribe(string(name), NATS_QUEUE, func(msg *nats.Msg) {
+		res, err := handler(bus.Context{
+			Data: msg.Data,
+			BindData: func(toBind interface{}) error {
+				if err := json.Unmarshal(msg.Data, &toBind); err != nil {
+					return err
+				}
+				return natsClient.validate.Struct(toBind)
+			},
+			EventTrigger: msg.Sub.Subject,
+			Kill: func(reason string) error {
+				natsClient.logger.Error(
+					fmt.Sprintf("NATS TERM queue: %s: %s", string(name), reason),
+				)
+
+				resBytes, _ := json.Marshal(bus.BusResponse{
+					Message: reason,
+					Success: false,
+				})
+				return msg.Respond(resBytes)
+			},
+			FollowUp: func(delay time.Duration) error {
+				natsClient.logger.Error(
+					fmt.Sprintf("NATS TERM queue: %s: %s", string(name), "Cant follow up response"),
+				)
+
+				return nil
+			},
+		})
+		if err != nil {
+			resBytes, _ := json.Marshal(bus.BusResponse{
+				Message: err.Error(),
+				Success: false,
+			})
+			msg.Respond(resBytes)
+			return
+		}
+		if res != nil {
+			// Convert
+			resBytes, _ := json.Marshal(res)
+			msg.Respond(resBytes)
+		}
 	})
 	if err != nil {
 		panic(err)

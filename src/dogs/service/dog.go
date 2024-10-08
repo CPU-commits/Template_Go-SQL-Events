@@ -1,16 +1,22 @@
 package service
 
 import (
+	"encoding/json"
+
 	"github.com/CPU-commits/Template_Go-EventDriven/src/dogs/dto"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/dogs/model"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/dogs/repository"
+	"github.com/CPU-commits/Template_Go-EventDriven/src/package/bus"
 )
 
-type dogService struct {
+var dogServiceInstance *DogService
+
+type DogService struct {
 	dogRepository repository.DogRepository
+	bus           bus.Bus
 }
 
-func (dogService *dogService) GetDogById(idDog int) (*model.Dog, error) {
+func (dogService *DogService) GetDogById(idDog int) (*model.Dog, error) {
 	dog, err := dogService.dogRepository.FindOne(&repository.CriteriaDog{
 		ID: idDog,
 	})
@@ -23,7 +29,7 @@ func (dogService *dogService) GetDogById(idDog int) (*model.Dog, error) {
 	return dog, nil
 }
 
-func (dogService *dogService) InsertDog(dogDto dto.DogDTO) error {
+func (dogService *DogService) InsertDog(dogDto dto.DogDTO) error {
 	dog := dogDto.ToModel()
 
 	exists, err := dogService.dogRepository.Exists(&repository.CriteriaDog{
@@ -37,13 +43,28 @@ func (dogService *dogService) InsertDog(dogDto dto.DogDTO) error {
 	}
 
 	_, err = dogService.dogRepository.Insert(dog)
+
+	go func() {
+		data, _ := json.Marshal(dog)
+
+		dogService.bus.Publish(bus.Event{
+			Name:    INSERT_DOG_EVENT,
+			Payload: data,
+		})
+	}()
 	return err
 }
 
 func NewDogService(
 	dogRepository repository.DogRepository,
-) *dogService {
-	return &dogService{
-		dogRepository: dogRepository,
+	bus bus.Bus,
+) *DogService {
+	if dogServiceInstance == nil {
+		dogServiceInstance = &DogService{
+			dogRepository: dogRepository,
+			bus:           bus,
+		}
 	}
+
+	return dogServiceInstance
 }

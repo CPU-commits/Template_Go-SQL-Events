@@ -18,8 +18,15 @@ type Context struct {
 	EventTrigger string
 }
 
+type BusResponse struct {
+	Success bool        `json:"success"`
+	Message string      `json:"message,omitempty"`
+	Data    interface{} `json:"data"`
+}
+
 type Bus interface {
 	Publish(event Event) error
 	Subscribe(name EventName, handler func(c Context) error)
+	SubscribeAndRespond(name EventName, handler func(c Context) (*BusResponse, error))
 	Request(name Event, toBind interface{}) error
 }

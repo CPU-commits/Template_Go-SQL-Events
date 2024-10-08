@@ -6,7 +6,9 @@ import (
 	"os"
 
 	"github.com/CPU-commits/Template_Go-EventDriven/src/cmd/bus"
+	"github.com/CPU-commits/Template_Go-EventDriven/src/cmd/bus/queue"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/cmd/http"
+	utilsHttp "github.com/CPU-commits/Template_Go-EventDriven/src/cmd/http/utils"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/package/logger"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/utils"
 	"github.com/natefinch/lumberjack"
@@ -99,6 +101,7 @@ func main() {
 	// Logger
 	zapLogger, logger := newLogger()
 	// Cmd
+	utilsHttp.Bus = queue.New(logger)
 	bus.Init(logger)
 	http.Init(zapLogger, logger)
 }

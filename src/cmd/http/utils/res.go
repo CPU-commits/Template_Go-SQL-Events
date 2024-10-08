@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 
+	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 )
@@ -50,4 +51,36 @@ func ValidatorErrorToErrorProblemDetails(
 		return out
 	}
 	return nil
+}
+
+func ResFromErr(c *gin.Context, err error) {
+	localizer := GetI18nLocalizer(c)
+
+	errRes := GetErrRes(err)
+	c.AbortWithStatusJSON(
+		errRes.StatusCode,
+		ProblemDetails{
+			Title: localizer.MustLocalize(&i18n.LocalizeConfig{
+				MessageID: errRes.MessageId,
+			}),
+			Type: errRes.TypeDetails,
+		},
+	)
+}
+
+func ResWithMessageID(
+	c *gin.Context,
+	messageId string,
+	statusCode int,
+) {
+	localizer := GetI18nLocalizer(c)
+
+	c.AbortWithStatusJSON(
+		statusCode,
+		ProblemDetails{
+			Title: localizer.MustLocalize(&i18n.LocalizeConfig{
+				MessageID: messageId,
+			}),
+		},
+	)
 }

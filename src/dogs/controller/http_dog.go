@@ -6,9 +6,15 @@ import (
 
 	"github.com/CPU-commits/Template_Go-EventDriven/src/cmd/http/utils"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/dogs/dto"
+	"github.com/CPU-commits/Template_Go-EventDriven/src/dogs/service"
+	"github.com/CPU-commits/Template_Go-EventDriven/src/package/bus"
 	"github.com/gin-gonic/gin"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 )
+
+type httpControllerDog struct {
+	dogService service.DogService
+}
 
 // GetDog godoc
 //
@@ -18,7 +24,7 @@ import (
 //	@Failure	404	{object}	utils.ProblemDetails
 //	@Param		id	path		int	true	"ID Dog"
 //	@Router		/api/dogs/{idDog} [get]
-func GetDog(c *gin.Context) {
+func (dogController *httpControllerDog) GetDog(c *gin.Context) {
 	idDog := c.Param("idDog")
 	idIntDog, err := strconv.Atoi(idDog)
 	if err != nil {
@@ -31,19 +37,9 @@ func GetDog(c *gin.Context) {
 		return
 	}
 
-	dog, err := dogService.GetDogById(idIntDog)
+	dog, err := dogController.dogService.GetDogById(idIntDog)
 	if err != nil {
-		localizer := utils.GetI18nLocalizer(c)
-		errRes := getErrRes(err)
-		c.AbortWithStatusJSON(
-			errRes.statusCode,
-			utils.ProblemDetails{
-				Title: localizer.MustLocalize(&i18n.LocalizeConfig{
-					MessageID: errRes.messageId,
-				}),
-				Type: errRes.typeDetails,
-			},
-		)
+		utils.ResFromErr(c, err)
 		return
 	}
 
@@ -57,7 +53,7 @@ func GetDog(c *gin.Context) {
 //	@Success	200	{string}	ok
 //	@Failure	409	{object}	utils.ProblemDetails
 //	@Router		/api/dogs [post]
-func InsertDog(c *gin.Context) {
+func (dogController *httpControllerDog) InsertDog(c *gin.Context) {
 	var dogDto *dto.DogDTO
 
 	if err := c.BindJSON(&dogDto); err != nil {
@@ -75,19 +71,19 @@ func InsertDog(c *gin.Context) {
 		)
 		return
 	}
-	if err := dogService.InsertDog(*dogDto); err != nil {
-		localizer := utils.GetI18nLocalizer(c)
-		errRes := getErrRes(err)
-		c.AbortWithStatusJSON(
-			errRes.statusCode,
-			utils.ProblemDetails{
-				Title: localizer.MustLocalize(&i18n.LocalizeConfig{
-					MessageID: errRes.messageId,
-				}),
-			},
-		)
+	if err := dogController.dogService.InsertDog(*dogDto); err != nil {
+		utils.ResFromErr(c, err)
 		return
 	}
 
 	c.String(201, "ok")
+}
+
+func NewHTTPDogController(bus bus.Bus) *httpControllerDog {
+	return &httpControllerDog{
+		dogService: *service.NewDogService(
+			dogRepositoryMemory,
+			bus,
+		),
+	}
 }
