@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -36,7 +37,9 @@ func Init(zapLogger *zap.Logger, logger logger.Logger) {
 	router.Use(ginzap.GinzapWithConfig(zapLogger, &ginzap.Config{
 		TimeFormat: time.RFC3339,
 		UTC:        true,
-		SkipPaths:  []string{"/swagger", "/healthz"},
+		SkipPathRegexps: []*regexp.Regexp{
+			regexp.MustCompile(`(?i)(swagger|healthz)`),
+		},
 	}))
 	router.Use(ginzap.RecoveryWithZap(zapLogger, true))
 
