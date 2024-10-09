@@ -10,15 +10,15 @@ import (
 
 // https://www.rfc-editor.org/rfc/rfc9457.html
 type ErrorProblemDetails struct {
-	Title   string `json:"title"`
-	Pointer string `json:"pointer"`
-	Param   string `json:"param,omitempty"`
+	Title   string `json:"title" example:"name"`
+	Pointer string `json:"pointer" example:"max"`
+	Param   string `json:"param,omitempty" example:"3"`
 }
 
 type ProblemDetails struct {
-	Type   string                `json:"type,omitempty"`
-	Title  string                `json:"title"`
-	Detail string                `json:"detail,omitempty"`
+	Type   string                `json:"type,omitempty" example:"/docs/errors/errorPointer"`
+	Title  string                `json:"title" example:"Descripción del problema para mostrar al usuario" validate:"required"`
+	Detail string                `json:"detail,omitempty" example:"Detalle técnico del error"`
 	Errors []ErrorProblemDetails `json:"errors,omitempty"`
 }
 
@@ -63,7 +63,6 @@ func ResFromErr(c *gin.Context, err error) {
 			Title: localizer.MustLocalize(&i18n.LocalizeConfig{
 				MessageID: errRes.MessageId,
 			}),
-			Type: errRes.TypeDetails,
 		},
 	)
 }
