@@ -3,7 +3,7 @@ package dto
 import "github.com/CPU-commits/Template_Go-EventDriven/src/dogs/model"
 
 type DogDTO struct {
-	Name      string `json:"name" binding:"required"`
+	Name      string `json:"name" binding:"required,max=100"`
 	OwnerName string `json:"owner" binding:"required"`
 }
 

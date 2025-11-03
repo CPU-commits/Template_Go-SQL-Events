@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"fmt"
-
 	"github.com/CPU-commits/Template_Go-EventDriven/src/dogs/dto"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/dogs/model"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/dogs/service"
@@ -28,9 +26,6 @@ func (*queueDogController) NotifyDogIsInserted(c bus.Context) error {
 	if err := c.BindData(&dog); err != nil {
 		return c.Kill(err.Error())
 	}
-
-	fmt.Printf("dog: %v\n", dog)
-	fmt.Printf("\"se ha insertado un perro y enviado una notificación!\": %v\n", "se ha insertado un perro y enviado una notificación!")
 
 	return nil
 }
