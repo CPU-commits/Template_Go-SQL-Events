@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "cockroachdb"
+  url      = env("DATABASE_URL")
+}
+
+model accesses {
+  id         BigInt   @id @default(sequence())
+  token      String
+  expires_at DateTime @db.Date
+  is_revoked Boolean  @default(false)
+  id_session BigInt
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  sessions   sessions @relation(fields: [id_session], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model auths {
+  id         BigInt     @id @default(sequence())
+  password   String?
+  providerId String?
+  provider String @default("local")
+  id_user    BigInt
+  created_at DateTime   @default(now()) @db.Timestamp(6)
+  users      users      @relation(fields: [id_user], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sessions   sessions[]
+}
+
+model roles_users {
+  id         BigInt    @id @default(sequence())
+  id_user    BigInt
+  role       role_name
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  users      users     @relation(fields: [id_user], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model sessions {
+  id         BigInt     @id @default(sequence())
+  token      String
+  id_auth    BigInt
+  device     String?
+  ip         String?
+  browser    String?
+  location   String?
+  expires_at DateTime   @db.Date
+  created_at DateTime   @default(now()) @db.Timestamp(6)
+  accesses   accesses[]
+  auths      auths      @relation(fields: [id_auth], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model users {
+  id                 BigInt               @id @default(sequence())
+  email              String               @unique
+  name               String
+  created_at         DateTime            @default(now()) @db.Timestamp(6)
+  updated_at         DateTime            @default(now()) @db.Timestamp(6) @updatedAt
+  auths              auths[]
+  roles_users        roles_users[]
+  token_passwords    token_passwords[]
+}
+
+enum role_name {
+  admin
+  user
+}
+
+model token_passwords {
+  id             BigInt    @id @default(sequence())
+  token          String
+  id_user        BigInt     @unique
+  created_at     DateTime @default(now()) @db.Timestamp(6)
+  users          users      @relation(fields: [id_user], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}

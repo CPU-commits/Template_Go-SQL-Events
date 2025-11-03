@@ -5,18 +5,18 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/CPU-commits/Template_Go-EventDriven/src/auth/model"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/settings"
 	"github.com/gin-gonic/gin"
 	jwt "github.com/golang-jwt/jwt/v4"
 )
 
 var jwtKey = settings.GetSettings().JWT_SECRET_KEY
-var jwtKeyByte = []byte(jwtKey)
 
 type Claims struct {
-	ID       string
-	UserType string
-	Name     string
+	ID    int64
+	Roles []model.Role
+	Name  string
 }
 
 type RefreshClaims struct {
@@ -53,10 +53,18 @@ func VerifyToken(bearerToken string) (*jwt.Token, error) {
 
 func ExtractTokenMetadata(token *jwt.Token) (*Claims, error) {
 	claim := token.Claims.(jwt.MapClaims)
+	var rolesIn []model.Role
+	if roles, ok := claim["roles"].([]interface{}); ok {
+		for _, role := range roles {
+			if roleStr, ok := role.(string); ok {
+				rolesIn = append(rolesIn, model.Role(roleStr))
+			}
+		}
+	}
 	return &Claims{
-		ID:       fmt.Sprintf("%v", claim["_id"]),
-		UserType: fmt.Sprintf("%v", claim["user_type"]),
-		Name:     fmt.Sprintf("%v", claim["name"]),
+		ID:    int64(claim["uid"].(float64)),
+		Roles: rolesIn,
+		Name:  fmt.Sprintf("%v", claim["name"]),
 	}, nil
 }
 
@@ -77,8 +85,17 @@ func NewClaimsFromContext(ctx *gin.Context) (*Claims, bool) {
 		return &Claims{}, false
 	}
 	return &Claims{
-		ID:       user.(*Claims).ID,
-		UserType: user.(*Claims).UserType,
-		Name:     user.(*Claims).Name,
+		ID:    user.(*Claims).ID,
+		Roles: user.(*Claims).Roles,
+		Name:  user.(*Claims).Name,
 	}, true
+}
+
+func GetUserID(c *gin.Context) int64 {
+	user, exists := NewClaimsFromContext(c)
+	if !exists {
+		return 0
+	}
+
+	return user.ID
 }

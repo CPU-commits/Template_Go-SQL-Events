@@ -11,14 +11,14 @@ const (
 	FilesOS = "files"
 )
 
-type objectStoreNATS struct {
+type ObjectStoreNATS struct {
 	os nats.ObjectStore
 }
 
-var objectStore = map[string]*objectStoreNATS{}
+var objectStore = map[string]*ObjectStoreNATS{}
 
 // Funcs
-func (osNATS *objectStoreNATS) Put(
+func (osNATS *ObjectStoreNATS) Put(
 	obj *nats.ObjectMeta,
 	reader io.Reader,
 	opts ...nats.ObjectOpt,
@@ -26,21 +26,28 @@ func (osNATS *objectStoreNATS) Put(
 	return osNATS.os.Put(obj, reader, opts...)
 }
 
-func (osNATS *objectStoreNATS) Delete(name string) error {
+func (osNATS *ObjectStoreNATS) Delete(name string) error {
 	return osNATS.os.Delete(name)
 }
 
-func (osNATS *objectStoreNATS) Get(name string) ([]byte, error) {
+func (osNATS *ObjectStoreNATS) Get(name string) ([]byte, error) {
 	return osNATS.os.GetBytes(name)
 }
 
 // New ObjectStore
-func (natsClient *NatsClient) ObjectStore(bucketName string) *objectStoreNATS {
+func ObjectStore(bucketName string) *ObjectStoreNATS {
+	conn := newConnectionNatsCore()
+	// Connect to JetStream
+	jsContext, err := conn.JetStream()
+	if err != nil {
+		panic(err)
+	}
+
 	var exists bool
-	var bucket *objectStoreNATS
+	var bucket *ObjectStoreNATS
 
 	if bucket, exists = objectStore[bucketName]; !exists {
-		os, err := natsClient.jsContext.CreateObjectStore(&nats.ObjectStoreConfig{
+		os, err := jsContext.CreateObjectStore(&nats.ObjectStoreConfig{
 			Bucket:   bucketName,
 			MaxBytes: 2.5e+7,
 			Storage:  nats.FileStorage,
@@ -48,7 +55,7 @@ func (natsClient *NatsClient) ObjectStore(bucketName string) *objectStoreNATS {
 		if err != nil {
 			panic(err)
 		}
-		bucket = &objectStoreNATS{
+		bucket = &ObjectStoreNATS{
 			os: os,
 		}
 		objectStore[bucketName] = bucket

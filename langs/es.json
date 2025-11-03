@@ -3,10 +3,6 @@
 		"unauthorized": "Rol no autorizado"
 	},
 	"unauthorized": "No tienes acceso",
-	"dog": {
-		"not_found": "No se ha encontrado el perro",
-		"has_owner": "El dueño tiene perro"
-	},
 	"server": {
 		"internal_error": "Error del servidor"
 	},
@@ -14,5 +10,14 @@
 		"error": "Error en el formulario",
 		"required": "Requerido",
 		"min": "Mínimo"
+	},
+	"user": {
+		"not_found": "El usuario no existe"
+	},
+	"auth": {
+		"err_credentials": "Credenciales inválidas",
+		"unable_role": "No se puede registrar con este rol",
+		"exists_email": "Ya existe el email o el nombre de usuario",
+		"invalid_params": "Algunos de los parametros es invalido"
 	}
 }

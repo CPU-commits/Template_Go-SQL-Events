@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -28,6 +29,8 @@ func msgForTag(tag string) string {
 		return "form.required"
 	case "min":
 		return "form.min"
+	case "email":
+		return "form.email"
 	}
 	return ""
 }
@@ -40,12 +43,17 @@ func ValidatorErrorToErrorProblemDetails(
 	if errors.As(err, &ve) {
 		out := make([]ErrorProblemDetails, len(ve))
 		for i, fe := range ve {
+			title, err := localizer.Localize(&i18n.LocalizeConfig{
+				MessageID: msgForTag(fe.Tag()),
+			})
+			if err != nil {
+				title = "x"
+			}
+
 			out[i] = ErrorProblemDetails{
 				Pointer: fe.Field(),
-				Title: localizer.MustLocalize(&i18n.LocalizeConfig{
-					MessageID: msgForTag(fe.Tag()),
-				}),
-				Param: fe.Param(),
+				Title:   title,
+				Param:   fe.Param(),
 			}
 		}
 		return out
@@ -54,6 +62,10 @@ func ValidatorErrorToErrorProblemDetails(
 }
 
 func ResFromErr(c *gin.Context, err error) {
+	if c.IsAborted() {
+		return
+	}
+
 	localizer := GetI18nLocalizer(c)
 
 	errRes := GetErrRes(err)
@@ -67,12 +79,50 @@ func ResFromErr(c *gin.Context, err error) {
 	)
 }
 
+func ResWithMessageIDTempl(
+	c *gin.Context,
+	messageId string,
+	statusCode int,
+	templateData map[string]any,
+	errors ...error,
+) {
+	if c.IsAborted() {
+		return
+	}
+
+	localizer := GetI18nLocalizer(c)
+	var detail string
+	for _, err := range errors {
+		detail += err.Error()
+	}
+
+	c.AbortWithStatusJSON(
+		statusCode,
+		ProblemDetails{
+			Title: localizer.MustLocalize(&i18n.LocalizeConfig{
+				MessageID:    messageId,
+				TemplateData: templateData,
+			}),
+			Detail: detail,
+		},
+	)
+}
+
 func ResWithMessageID(
 	c *gin.Context,
 	messageId string,
 	statusCode int,
+	errors ...error,
 ) {
+	if c.IsAborted() {
+		return
+	}
+
 	localizer := GetI18nLocalizer(c)
+	var detail string
+	for _, err := range errors {
+		detail += err.Error()
+	}
 
 	c.AbortWithStatusJSON(
 		statusCode,
@@ -80,6 +130,29 @@ func ResWithMessageID(
 			Title: localizer.MustLocalize(&i18n.LocalizeConfig{
 				MessageID: messageId,
 			}),
+			Detail: detail,
+		},
+	)
+}
+
+func ResErrValidators(
+	c *gin.Context,
+	err error,
+) {
+	if c.IsAborted() {
+		return
+	}
+
+	localizer := GetI18nLocalizer(c)
+
+	c.AbortWithStatusJSON(
+		http.StatusBadRequest,
+		ProblemDetails{
+			Errors: ValidatorErrorToErrorProblemDetails(err, localizer),
+			Title: localizer.MustLocalize(&i18n.LocalizeConfig{
+				MessageID: "form.error",
+			}),
+			Detail: err.Error(),
 		},
 	)
 }

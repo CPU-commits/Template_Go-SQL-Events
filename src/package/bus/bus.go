@@ -8,6 +8,12 @@ type Event struct {
 	Name     EventName
 	Payload  []byte
 	Metadata map[string]string
+	ID       string
+}
+
+type Metadata interface {
+	Get(key string) string
+	GetDefault(key string, defaultValue string) string
 }
 
 type Context struct {
@@ -16,6 +22,7 @@ type Context struct {
 	Kill         func(reason string) error
 	FollowUp     func(delay time.Duration) error
 	EventTrigger string
+	Metadata     Metadata
 }
 
 type BusResponse struct {

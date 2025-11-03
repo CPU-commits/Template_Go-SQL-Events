@@ -13,11 +13,12 @@ import (
 	"github.com/CPU-commits/Template_Go-EventDriven/src/package/logger"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/settings"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
 
-const NATS_QUEUE = "auth"
+const NATS_QUEUE = "main"
 
 type NatsClient struct {
 	conn      *nats.Conn
@@ -46,7 +47,7 @@ func newConnectionNatsCore() *nats.Conn {
 
 func (natsClient *NatsClient) addStreams() {
 	natsClient.streams = make(map[string]jetstream.Stream)
-	streams := []string{"DOGS"}
+	streams := []string{"TOKEN", "USER", "CODE"}
 	// Exists stream
 	contextList, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
@@ -68,9 +69,10 @@ func (natsClient *NatsClient) addStreams() {
 				log.Panicf("Stream %s not exists", expectedStream)
 			} else {
 				natsClient.js.CreateStream(context.Background(), jetstream.StreamConfig{
-					Name:     expectedStream,
-					Subjects: []string{strings.ToLower(expectedStream) + ".*"},
-					Storage:  jetstream.MemoryStorage,
+					Name:       expectedStream,
+					Subjects:   []string{strings.ToLower(expectedStream) + ".*"},
+					Storage:    jetstream.MemoryStorage,
+					Duplicates: time.Hour * 24 * 45,
 				})
 			}
 		}
@@ -91,7 +93,28 @@ func (natsClient *NatsClient) GetStream(stream string) jetstream.Stream {
 func (natsClient *NatsClient) Publish(
 	event bus.Event,
 ) error {
-	_, err := natsClient.js.Publish(context.Background(), string(event.Name), event.Payload)
+	if event.Metadata == nil && event.ID == "" {
+		_, err := natsClient.js.Publish(
+			context.Background(),
+			string(event.Name),
+			event.Payload,
+		)
+		return err
+	}
+	msg := nats.NewMsg(string(event.Name))
+	for item, value := range event.Metadata {
+		msg.Header.Set(item, value)
+	}
+	msg.Data = event.Payload
+	if event.ID != "" {
+		msg.Header.Set("Nats-Msg-Id", event.ID)
+	}
+
+	_, err := natsClient.js.PublishMsg(
+		context.Background(),
+		msg,
+	)
+
 	return err
 }
 
@@ -171,6 +194,7 @@ func (natsClient *NatsClient) SubscribeAndRespond(
 
 				return nil
 			},
+			Metadata: natsClient.newHeaders(msg.Header),
 		})
 		if err != nil {
 			resBytes, _ := json.Marshal(bus.BusResponse{
@@ -188,6 +212,29 @@ func (natsClient *NatsClient) SubscribeAndRespond(
 	})
 	if err != nil {
 		panic(err)
+	}
+}
+
+type Headers struct {
+	headers nats.Header
+}
+
+func (h Headers) Get(key string) string {
+	return h.headers.Get(key)
+}
+
+func (h Headers) GetDefault(key string, defaultValue string) string {
+	v := h.Get(key)
+	if v == "" {
+		v = defaultValue
+	}
+
+	return v
+}
+
+func (*NatsClient) newHeaders(headers nats.Header) bus.Metadata {
+	return Headers{
+		headers: headers,
 	}
 }
 
@@ -217,34 +264,52 @@ func (natsClient *NatsClient) Subscribe(
 	if err != nil {
 		panic(err)
 	}
+	iter, err := cons.Messages(
+		jetstream.PullMaxMessages(1),
+	)
+	if err != nil {
+		panic(err)
+	}
+	// Messages
+	msgs := make(chan jetstream.Msg, 64)
 
 	go func() {
-		iter, err := cons.Messages(jetstream.PullMaxMessages(1))
-		if err != nil {
-			panic(err)
-		}
-		numWorkers := 5
-		sem := make(chan struct{}, numWorkers)
 		for {
-			sem <- struct{}{}
-			go func() {
-				defer func() {
-					<-sem
-				}()
-				msg, err := iter.Next()
-				if err != nil {
-					return
-				}
-				err = msg.InProgress()
-				if err != nil {
-					return
+			msg, err := iter.Next()
+			if err != nil {
+				natsClient.logger.Info(
+					fmt.Sprintf("NATS MSG Iter %s: %s [%s]", msg.Subject(), string(name), info.Config.Name),
+				)
+				continue
+			}
+			msgs <- msg
+		}
+	}()
+
+	numWorkers := 5
+	for i := range numWorkers {
+		go func(workerID int) {
+			for msg := range msgs {
+				// Enter msg
+				m, _ := uuid.NewUUID()
+				natsClient.logger.Info(
+					fmt.Sprintf("NATS MSG consumer %s: %s [%s]", m.String(), string(name), info.Config.Name),
+				)
+
+				if e := msg.InProgress(); e != nil {
+					_ = msg.Nak()
+					natsClient.logger.Error(fmt.Sprintf(
+						"NATS InProgress failed: %s [%s] (w=%d): %v",
+						m.String(), info.Config.Name, workerID, e,
+					))
+					continue
 				}
 				// TODO
-				err = handler(bus.Context{
+				ctx := bus.Context{
 					EventTrigger: msg.Subject(),
 					Kill: func(reason string) error {
 						natsClient.logger.Error(
-							fmt.Sprintf("NATS TERM consumer: %s [%s]: %s", string(name), info.Config.Name, reason),
+							fmt.Sprintf("NATS TERM consumer %s: %s [%s]: %s", m.String(), string(name), info.Config.Name, reason),
 						)
 						return msg.Term()
 					},
@@ -258,18 +323,25 @@ func (natsClient *NatsClient) Subscribe(
 						}
 						return natsClient.validate.Struct(toBind)
 					},
-				})
-				if err == nil {
-					msg.Ack()
-				} else {
-					msg.Nak()
-					natsClient.logger.Error(
-						fmt.Sprintf("NATS Error consumer: %s [%s]: %s", string(name), info.Config.Name, err.Error()),
-					)
+					Metadata: natsClient.newHeaders(msg.Headers()),
 				}
-			}()
-		}
-	}()
+				if e := handler(ctx); e != nil {
+					_ = msg.Nak()
+					natsClient.logger.Error(fmt.Sprintf(
+						"NATS Error consumer: %s [%s] (w=%d): %v",
+						m.String(), info.Config.Name, workerID, e,
+					))
+					continue
+				}
+
+				_ = msg.Ack()
+				natsClient.logger.Info(fmt.Sprintf(
+					"NATS Consumer Success: %s [%s] (w=%d)",
+					m.String(), info.Config.Name, workerID,
+				))
+			}
+		}(i + 1)
+	}
 }
 
 func New(logger logger.Logger) bus.Bus {

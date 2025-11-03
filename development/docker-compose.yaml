@@ -1,0 +1,12 @@
+services:
+  crdb:
+    image: cockroachdb/cockroach:v24.2.3
+    ports:
+    - "26257:26257"
+    - "8090:8080"
+    command: start-single-node --insecure
+    volumes:
+      - "db:/cockroach/cockroach-data"
+
+volumes:
+  db:

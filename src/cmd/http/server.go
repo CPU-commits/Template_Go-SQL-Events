@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -8,14 +9,15 @@ import (
 	"strings"
 	"time"
 
+	authController "github.com/CPU-commits/Template_Go-EventDriven/src/auth/controller"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/cmd/bus/queue"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/cmd/http/docs"
-	"github.com/CPU-commits/Template_Go-EventDriven/src/dogs/controller"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/package/logger"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/settings"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/utils"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/secure"
+	"github.com/markbates/goth/gothic"
 
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
@@ -91,19 +93,60 @@ func Init(zapLogger *zap.Logger, logger logger.Logger) {
 	})
 	// Init bus
 	bus := queue.New(logger)
-	// Routes
-	dog := router.Group("api/dogs")
-	{
-		// Controllers
-		dogController := controller.NewHTTPDogController(
-			bus,
-		)
-		// Define routes
-		dog.GET("/:idDog", dogController.GetDog)
-		dog.POST("", dogController.InsertDog)
-	}
 	// Route docs
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// Auth
+	initAuthProviders()
+	authProviders := router.Group("auth")
+	auth := router.Group("api/auth")
+	{
+		// Controllers
+		authControlle := authController.NewAuthHttpController(bus)
+		// Define routes
+		auth.POST("/login", authControlle.Login)
+		auth.POST("/refresh", authControlle.Refresh)
+		// auth.POST("/register", authControlle.Register)
+		authProviders.GET("/:provider/callback", func(ctx *gin.Context) {
+			provider := ctx.Param("provider")
+			ctx.Request = ctx.Request.WithContext(
+				context.WithValue(
+					context.Background(),
+					"provider",
+					provider,
+				),
+			)
+
+			user, err := gothic.CompleteUserAuth(ctx.Writer, ctx.Request)
+			if err != nil {
+				redirectToSavePage(ctx)
+				return
+			}
+
+			err = authControlle.HandleAuthUser(ctx, user)
+			if err != nil {
+				redirectToSavePage(ctx)
+				return
+			}
+
+			redirectToClient(ctx)
+		})
+		authProviders.GET("/:provider", func(ctx *gin.Context) {
+			provider := ctx.Param("provider")
+			ctx.Request = ctx.Request.WithContext(
+				context.WithValue(
+					context.Background(),
+					"provider",
+					provider,
+				),
+			)
+
+			if gothUser, err := gothic.CompleteUserAuth(ctx.Writer, ctx.Request); err != nil && gothUser.AccessToken != "" {
+				redirectToClient(ctx)
+			} else {
+				gothic.BeginAuthHandler(ctx.Writer, ctx.Request)
+			}
+		})
+	}
 	// Route healthz
 	router.GET("/healthz", func(ctx *gin.Context) {
 		ctx.String(200, "OK")

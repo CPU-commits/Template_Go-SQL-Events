@@ -2,17 +2,20 @@ package middleware
 
 import (
 	"net/http"
+	"slices"
 
+	"github.com/CPU-commits/Template_Go-EventDriven/src/auth/model"
 	"github.com/CPU-commits/Template_Go-EventDriven/src/cmd/http/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 )
 
-func RolesMiddleware(roles []string) gin.HandlerFunc {
+func RolesMiddleware(roles []model.Role) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		claims, _ := utils.NewClaimsFromContext(ctx)
-		for _, rol := range roles {
-			if rol == claims.UserType {
+		userRoles := claims.Roles
+		for _, allowRole := range roles {
+			if slices.Contains(userRoles, allowRole) {
 				ctx.Next()
 				return
 			}

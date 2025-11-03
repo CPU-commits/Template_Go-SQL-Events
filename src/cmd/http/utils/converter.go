@@ -3,7 +3,9 @@ package utils
 import (
 	"net/http"
 
-	"github.com/CPU-commits/Template_Go-EventDriven/src/dogs/service"
+	"github.com/CPU-commits/Template_Go-EventDriven/src/auth/dto"
+	authService "github.com/CPU-commits/Template_Go-EventDriven/src/auth/service"
+	"github.com/CPU-commits/Template_Go-EventDriven/src/utils"
 )
 
 type errRes struct {
@@ -27,12 +29,36 @@ func GetErrRes(err error) errRes {
 }
 
 func init() {
-	errorsService[service.ErrDogNotExists] = errRes{
-		StatusCode: http.StatusNotFound,
-		MessageId:  "dog.not_found",
+	errorsService[authService.ErrInvalidCredentials] = errRes{
+		StatusCode: http.StatusForbidden,
+		MessageId:  "auth.err_credentials",
 	}
-	errorsService[service.ErrOwnerDogHasOneDog] = errRes{
+	errorsService[authService.ErrUserLoginNotFound] = errRes{
+		StatusCode: http.StatusForbidden,
+		MessageId:  "auth.err_credentials",
+	}
+	errorsService[utils.ErrRepositoryFailed] = errRes{
+		StatusCode: http.StatusServiceUnavailable,
+		MessageId:  "server.db_error",
+	}
+	errorsService[authService.ErrSessionNotExists] = errRes{
 		StatusCode: http.StatusConflict,
-		MessageId:  "dog.has_owner",
+		MessageId:  "session.not_exists",
+	}
+	errorsService[authService.ErrUserNotFound] = errRes{
+		StatusCode: http.StatusNotFound,
+		MessageId:  "user.not_found",
+	}
+	errorsService[authService.ErrExistsEmail] = errRes{
+		StatusCode: http.StatusConflict,
+		MessageId:  "auth.exists_email",
+	}
+	errorsService[dto.ErrUnableToRegisterRole] = errRes{
+		StatusCode: http.StatusBadRequest,
+		MessageId:  "auth.unable_role",
+	}
+	errorsService[authService.ErrInvalidParams] = errRes{
+		StatusCode: http.StatusBadRequest,
+		MessageId:  "auth.invalid_params",
 	}
 }
