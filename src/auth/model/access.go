@@ -8,5 +8,5 @@ type Access struct {
 	ExpiresAt time.Time
 	CreatedAt time.Time
 	IsRevoked bool
-	IDAccess  int64
+	IDSession int64
 }

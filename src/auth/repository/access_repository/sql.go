@@ -71,8 +71,9 @@ func (sqlAR sqlAccessRepository) Exists(criteria *AccessCriteria) (int64, error)
 func (sqlAR sqlAccessRepository) InsertOne(access model.Access) (id int64, err error) {
 	accessSQL := models.Access{
 		Token:     access.Token,
-		IDSession: access.IDAccess,
+		IDSession: access.IDSession,
 		CreatedAt: time.Now(),
+		ExpiresAt: access.ExpiresAt,
 	}
 	err = accessSQL.Insert(context.Background(), sqlAR.db, boil.Infer())
 	if err != nil {

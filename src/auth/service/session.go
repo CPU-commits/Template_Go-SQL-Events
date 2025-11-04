@@ -106,8 +106,8 @@ func (sessionService *sessionService) GenerateAccess(
 	// Insert access
 	access := model.Access{
 		Token:     token,
-		ExpiresAt: time.Now(),
-		IDAccess:  idSession,
+		ExpiresAt: time.Now().Add(maxAccessSessionTime),
+		IDSession: idSession,
 	}
 	idAccess, err := sessionService.accessRepository.InsertOne(access)
 	if err != nil {
